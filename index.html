@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>アイコンフレーム画像生成補助ツール</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg2: #111932;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.12);
+      --line: rgba(255,255,255,0.14);
+      --text: #f3f7ff;
+      --muted: #aeb8d3;
+      --accent: #7cc8ff;
+      --shadow: 0 18px 44px rgba(0,0,0,0.28);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", Meiryo, system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(105,168,255,0.18), transparent 34%),
+        radial-gradient(circle at top right, rgba(255,120,214,0.14), transparent 28%),
+        linear-gradient(160deg, var(--bg), var(--bg2));
+    }
+
+    .wrap {
+      width: min(800px, calc(100% - 24px));
+      margin: 24px auto 40px;
+    }
+
+    .hero {
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      backdrop-filter: blur(14px);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(22px, 3vw, 32px);
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 18px 20px 0;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .panel-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .panel-body {
+      padding: 18px 20px 20px;
+    }
+
+    /* ★ スマホでも絶対に2列をキープするグリッド */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: opacity 0.2s ease;
+      min-width: 0;
+    }
+
+    /* 文字設定項目は初期状態で非表示 */
+    .text-setting-field {
+      display: none; 
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .label {
+      font-size: 12px; /* スマホ向けに少し縮小 */
+      color: #dce6ff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(7, 13, 28, 0.68);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      outline: none;
+      transition: 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: rgba(124,200,255,0.9);
+      box-shadow: 0 0 0 3px rgba(124,200,255,0.16);
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.7;
+    }
+
+    /* カスタム選択ボタン */
+    .custom-select {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(7, 13, 28, 0.68);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 28px 12px 12px; /* スマホ向けに余白調整 */
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      position: relative;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .custom-select:hover {
+      border-color: rgba(124,200,255,0.6);
+      background: rgba(255,255,255,0.08);
+    }
+    .custom-select::after {
+      content: "▼";
+      font-size: 10px;
+      color: var(--muted);
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(7, 13, 28, 0.68);
+      border: 1px solid rgba(255,255,255,0.12);
+      min-height: 48px;
+      cursor: pointer;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #89d2ff;
+      cursor: pointer;
+    }
+    .checkbox-row label {
+      cursor: pointer;
+      flex-grow: 1;
+      font-size: 14px;
+    }
+
+    /* カラーピッカーボタン */
+    .color-picker-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(7, 13, 28, 0.68);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      font: inherit;
+      overflow: hidden;
+      transition: 0.2s ease;
+    }
+    .color-picker-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(124,200,255,0.4);
+    }
+    .color-picker-btn span {
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 14px;
+    }
+    .color-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 0 8px rgba(0,0,0,0.4);
+      pointer-events: none;
+      flex-shrink: 0;
+    }
+    .color-picker-btn input[type="color"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .segmented {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .segmented button,
+    .action-btn,
+    .quick-btn {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font: inherit;
+      transition: 0.2s ease;
+    }
+    .segmented button:hover,
+    .action-btn:hover,
+    .quick-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.12);
+    }
+    .segmented button.active {
+      background: linear-gradient(180deg, rgba(124,200,255,0.32), rgba(124,200,255,0.14));
+      border-color: rgba(124,200,255,0.72);
+      color: #fff;
+      box-shadow: 0 0 0 3px rgba(124,200,255,0.12);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: #eef5ff;
+      cursor: pointer;
+      transition: 0.2s ease;
+      user-select: none;
+    }
+    .chip:hover { transform: translateY(-1px); }
+    .chip.active {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.26);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .actions-row button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 14px;
+    }
+    
+    .action-btn.primary {
+      background: linear-gradient(135deg, rgba(124,200,255,0.94), rgba(191,124,255,0.9));
+      border: none;
+      color: #08101e;
+      font-weight: 800;
+      padding: 16px;
+      font-size: 16px;
+      width: 100%;
+      border-radius: 14px;
+    }
+
+    /* モーダル共通スタイル（選択肢タイル用） */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.25s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: var(--bg2);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 28px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      width: 92%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px 20px;
+      transform: translateY(20px) scale(0.98);
+      transition: 0.25s ease;
+      position: relative;
+    }
+    .modal-overlay.active .modal-content {
+      transform: translateY(0) scale(1);
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 22px;
+      transition: 0.2s;
+      z-index: 2;
+    }
+    .modal-close:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .tile-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 14px 6px;
+      color: #e5efff;
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.4;
+      min-height: 60px;
+      word-break: auto-phrase;
+    }
+    .tile-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-2px);
+    }
+    .tile-btn.active {
+      background: linear-gradient(135deg, rgba(124, 200, 255, 0.3), rgba(191, 124, 255, 0.3));
+      border-color: rgba(124, 200, 255, 0.6);
+      box-shadow: 0 0 12px rgba(124, 200, 255, 0.2);
+    }
+
+    .preview-title {
+      font-size: 15px;
+      margin: 0 0 12px;
+      color: #e5efff;
+    }
+
+    /* スマホ用のメディアクエリから form-grid の1列化を削除しました！ */
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>アイコンフレーム画像生成補助ツール</h1>
+      <p>
+        ChatGPTで使うための、背景透過アイコンフレーム用プロンプトを自動生成するHTMLです。
+        設定を選ぶと、自然な日本語プロンプトになります。
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>設定</h2>
+          <p>ここで選んだ内容がプロンプト文に反映されます。</p>
+        </div>
+        <div class="panel-body">
+          
+          <div class="form-grid">
+            
+            <div class="field">
+              <label class="label">メインカラー</label>
+              <div class="color-picker-btn">
+                <span>🎨 色選択</span>
+                <div class="color-indicator" id="mainColorIndicator" style="background-color: #ffd700;"></div>
+                <input type="color" id="mainColor" value="#ffd700">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">フレームパターン</label>
+              <div class="custom-select" data-target="pattern" id="val-pattern">ラグジュアリー</div>
+            </div>
+
+            <div class="field">
+              <label class="label">種類・雰囲気</label>
+              <div class="custom-select" data-target="mood" id="val-mood">可愛い</div>
+            </div>
+
+            <div class="field">
+              <label class="label">アスペクト比</label>
+              <div class="custom-select" data-target="ratio" id="val-ratio">1:1</div>
+            </div>
+
+            <div class="field">
+              <label class="label">フレームの形</label>
+              <div class="custom-select" data-target="shape" id="val-shape">円形</div>
+            </div>
+
+            <div class="field">
+              <label class="label">フレームの太さ</label>
+              <div class="custom-select" data-target="thickness" id="val-thickness">標準</div>
+            </div>
+
+            <div class="field full">
+              <label class="label" for="subColor">差し色・補助カラー (入力 または 選択)</label>
+              <input id="subColor" type="text" placeholder="例：白、薄紫、青緑、赤金 など" value="白" />
+              <div class="chips" id="quickColors" style="margin-top: 4px;">
+                <button type="button" class="chip active" data-color="白">白</button>
+                <button type="button" class="chip" data-color="黒">黒</button>
+                <button type="button" class="chip" data-color="水色">水色</button>
+                <button type="button" class="chip" data-color="薄紫">薄紫</button>
+                <button type="button" class="chip" data-color="ピンクゴールド">ピンクゴールド</button>
+                <button type="button" class="chip" data-color="エメラルド">エメラルド</button>
+                <button type="button" class="chip" data-color="赤金">赤金</button>
+                <button type="button" class="chip" data-color="オーロラ">オーロラ</button>
+              </div>
+            </div>
+
+            <div class="field full">
+              <label class="label">装飾要素</label>
+              <div class="segmented" id="decorations"></div>
+            </div>
+
+            <div class="field full">
+              <label class="label">質感</label>
+              <div class="custom-select" data-target="finish" id="val-finish">光沢感のある</div>
+            </div>
+
+            <div class="field full">
+              <label class="label" for="detail">追加したい要望</label>
+              <textarea id="detail" placeholder="例：上部に王冠モチーフ、下部に小さなリボン、左右対称、キラキラ多め など"></textarea>
+            </div>
+
+            <div class="field full">
+              <div class="checkbox-row" onclick="document.getElementById('textEnabled').click();">
+                <input id="textEnabled" type="checkbox" onclick="event.stopPropagation();" />
+                <label for="textEnabled" onclick="event.preventDefault();">文字入れを有効にする</label>
+              </div>
+            </div>
+
+            <div class="field text-setting-field">
+              <label class="label" for="textValue">入れたい文字</label>
+              <input id="textValue" type="text" placeholder="例：NATSUMI / Aina" value="" />
+            </div>
+
+            <div class="field text-setting-field">
+              <label class="label">文字スタイル</label>
+              <div class="custom-select" data-target="textStyle" id="val-textStyle">高級感のある筆記体</div>
+            </div>
+
+            <div class="field text-setting-field">
+              <label class="label" for="textColor">文字色</label>
+              <input id="textColor" type="text" placeholder="例：白、金" value="白" />
+            </div>
+
+            <div class="field text-setting-field">
+              <label class="label">文字位置</label>
+              <div class="custom-select" data-target="textPos" id="val-textPos">下部</div>
+            </div>
+
+            <div class="field full">
+              <label class="label" for="quality">品質指定</label>
+              <input id="quality" type="text" value="超高精細、masterpiece、高品質、洗練されたディテール" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="action-btn primary copy-trigger">✨ プロンプトをコピー</button>
+            <div class="actions-row">
+              <button type="button" class="action-btn" id="sampleBtn">サンプル設定</button>
+              <button type="button" class="action-btn" id="resetBtn">リセット</button>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="optionsModal">
+    <div class="modal-content options-mode">
+      <button class="modal-close" id="closeOptionsModalBtn">&times;</button>
+      <h3 class="preview-title" id="optionsModalTitle" style="margin-bottom: 0; font-size: 18px;">選択してください</h3>
+      <div class="tile-grid" id="optionsModalGrid">
+        </div>
+    </div>
+  </div>
+
+  <script>
+    const selections = {
+      pattern: 'ラグジュアリー',
+      mood: '可愛い',
+      ratio: '1:1',
+      shape: '円形',
+      thickness: '標準',
+      finish: '光沢感のある',
+      textStyle: '高級感のある筆記体',
+      textPos: '下部'
+    };
+
+    const optionsData = {
+      pattern: { title: "フレームパターン", items: ["ラグジュアリー", "ネオン", "ジュエリー", "フラワー", "ゴシック", "サイバー", "和風", "天使", "炎", "氷", "宇宙", "ポップ"] },
+      mood: { title: "種類・雰囲気", items: ["可愛い", "かっこいい", "幻想的", "高級感", "ダーク", "透明感", "ゴージャス", "シンプル"] },
+      ratio: { title: "アスペクト比", items: ["1:1", "9:16", "16:9", "4:5", "3:4", "2:3"] },
+      shape: { title: "フレームの形", items: ["円形", "正方形", "角丸正方形", "ハート型", "星型", "六角形", "花型"] },
+      thickness: { title: "フレームの太さ", items: ["細め", "標準", "太め", "重厚"] },
+      finish: { title: "質感", items: ["光沢感のある", "金属的な", "ガラスのような", "宝石のような", "半透明の", "マットな"] },
+      textStyle: { title: "文字スタイル", items: ["高級感のある筆記体", "可愛い丸文字", "エレガントな明朝風", "太めのロゴ風", "未来感のある英字"] },
+      textPos: { title: "文字位置", items: ["下部", "上部", "中央下寄り", "円周上"] }
+    };
+
+    const decorationsData = [
+      '宝石', 'パール', 'リボン', '王冠', '羽', 'ハート', '星', '花びら', 'チェーン', 'レース', '炎エフェクト', '氷の結晶', '光粒子', 'オーラ'
+    ];
+
+    const patternDescriptions = {
+      'ラグジュアリー': '高級感のある装飾と上品な輝きを持つ',
+      'ネオン': '発光感が強く、輪郭が映える',
+      'ジュエリー': '宝石細工のようにきらめく',
+      'フラワー': '花の装飾を主役にした華やかな',
+      'ゴシック': '重厚で装飾性の高いダークな',
+      'サイバー': '近未来的でシャープな発光を持つ',
+      '和風': '和柄や雅な意匠を取り入れた',
+      '天使': '羽や神秘的な光を感じる',
+      '炎': '燃え上がるような勢いのある',
+      '氷': '冷たく透き通るような',
+      '宇宙': '星雲や銀河を思わせる幻想的な',
+      'ポップ': '明るく可愛く親しみやすい'
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const mainColor = $('mainColor');
+    const mainColorIndicator = $('mainColorIndicator');
+    const subColor = $('subColor');
+    const detail = $('detail');
+    const textEnabled = $('textEnabled');
+    const textValue = $('textValue');
+    const textColor = $('textColor');
+    const quality = $('quality');
+
+    const decorationsRoot = $('decorations');
+    const selectedDecorations = new Set(['宝石', '光粒子']);
+    
+    const optionsModal = $('optionsModal');
+    const closeOptionsModalBtn = $('closeOptionsModalBtn');
+    const optionsModalTitle = $('optionsModalTitle');
+    const optionsModalGrid = $('optionsModalGrid');
+
+    function buildDecorations() {
+      decorationsRoot.innerHTML = '';
+      decorationsData.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = item;
+        btn.className = 'quick-btn' + (selectedDecorations.has(item) ? ' active' : '');
+        btn.addEventListener('click', () => {
+          if (selectedDecorations.has(item)) {
+            selectedDecorations.delete(item);
+          } else {
+            selectedDecorations.add(item);
+          }
+          buildDecorations();
+          updateAll();
+        });
+        decorationsRoot.appendChild(btn);
+      });
+    }
+
+    function textPositionText(v) {
+      const map = {
+        '下部': 'フレームの下部にバランスよく配置し',
+        '上部': 'フレームの上部に美しく配置し',
+        '中央下寄り': 'フレーム中央のやや下に自然に配置し',
+        '円周上': 'フレームの円周または外周ラインに沿って配置し'
+      };
+      return map[v] || 'フレームの下部に配置し';
+    }
+
+    function listToJapanese(arr) {
+      if (!arr.length) return '';
+      if (arr.length === 1) return arr[0];
+      return arr.slice(0, -1).join('、') + '、' + arr[arr.length - 1];
+    }
+
+    function buildPrompt() {
+      const decoList = [...selectedDecorations];
+      const textOn = textEnabled.checked && textValue.value.trim() !== '';
+      
+      const textSentence = textOn
+        ? `\n文字入れも行い、${textValue.value.trim()}という文字を${textColor.value.trim() || '白'}で、${selections.textStyle}の雰囲気で、${textPositionText(selections.textPos)}読みやすく高級感のある仕上がりにしてください。`
+        : '\n文字は入れず、フレーム単体で完成するデザインにしてください。';
+
+      const detailSentence = detail.value.trim()
+        ? `\n\n追加要望として、${detail.value.trim()}。`
+        : '';
+
+      const decoSentence = decoList.length
+        ? `装飾要素は${listToJapanese(decoList)}を取り入れてください。`
+        : '';
+
+      return `背景透過のアイコンフレーム画像を生成してください。人物や背景風景は入れず、フレーム単体のデザインにしてください。
+
+デザインは${selections.pattern}パターンで、全体の雰囲気は${selections.mood}。フレームの形は${selections.shape}、アスペクト比は${selections.ratio}。メインカラーは「${mainColor.value}（カラーコード）」、差し色は${subColor.value.trim() || '白'}。${selections.finish}質感で、フレームの太さは${selections.thickness}にしてください。
+
+${patternDescriptions[selections.pattern] || ''}アイコンフレームにし、中央はアイコンを入れられるようにしっかり抜けた構造にしてください。背景は完全透過で、PNG素材向きの見た目にしてください。${decoSentence}${textSentence}${detailSentence}
+
+品質は${quality.value.trim() || '高品質'}。全体は洗練され、バランスがよく、アイコン用として見栄えが良く、細部まで丁寧に作り込まれたデザインにしてください。余計な背景、人物、不要な小物、透過されていないベタ背景は入れないでください。`;
+    }
+
+    function updateSelectUI() {
+      Object.keys(selections).forEach(key => {
+        const el = document.getElementById(`val-${key}`);
+        if (el) el.textContent = selections[key];
+      });
+    }
+
+    function updateAll() {
+      const isTextOn = textEnabled.checked;
+      document.querySelectorAll('.text-setting-field').forEach(field => {
+        // チェックボックスの状態に応じて表示/非表示にする
+        field.style.display = isTextOn ? 'flex' : 'none';
+      });
+      mainColorIndicator.style.backgroundColor = mainColor.value;
+      updateSelectUI();
+    }
+
+    // ==========================================
+    // 自動コピー処理（確実なテキストエリア生成方式）
+    // ==========================================
+    function executeCopy() {
+      updateAll(); 
+      const textToCopy = buildPrompt(); 
+      let successful = false;
+
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      textArea.style.fontSize = "16px";
+
+      document.body.appendChild(textArea);
+      
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, 999999);
+
+      try {
+        successful = document.execCommand('copy');
+      } catch (err) {
+        successful = false;
+      }
+
+      document.body.removeChild(textArea);
+
+      if (successful) {
+        const allCopyBtns = document.querySelectorAll('.copy-trigger');
+        allCopyBtns.forEach(btn => {
+           const orig = btn.dataset.origText || btn.textContent;
+           btn.dataset.origText = orig;
+           btn.textContent = 'コピーしました！';
+           btn.style.background = 'linear-gradient(135deg, #a1ffce, #faffd1)';
+           btn.style.color = '#000';
+           setTimeout(() => {
+             btn.textContent = orig;
+             btn.style.background = '';
+             btn.style.color = '';
+           }, 2000);
+        });
+      } else {
+        alert("お使いの環境では自動コピーがブロックされました。");
+      }
+    }
+
+    document.querySelectorAll('.copy-trigger').forEach(btn => {
+      btn.addEventListener('click', executeCopy);
+    });
+
+    // --- 選択肢ポップアップ処理 ---
+    document.querySelectorAll('.custom-select').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.target;
+        const data = optionsData[key];
+        
+        optionsModalTitle.textContent = data.title;
+        optionsModalGrid.innerHTML = '';
+        
+        data.items.forEach(item => {
+          const tile = document.createElement('div');
+          tile.className = 'tile-btn' + (selections[key] === item ? ' active' : '');
+          tile.textContent = item;
+          
+          tile.addEventListener('click', () => {
+            selections[key] = item;
+            updateAll();
+            optionsModal.classList.remove('active');
+          });
+          optionsModalGrid.appendChild(tile);
+        });
+        
+        optionsModal.classList.add('active');
+      });
+    });
+
+    closeOptionsModalBtn.addEventListener('click', () => optionsModal.classList.remove('active'));
+    optionsModal.addEventListener('click', (e) => {
+      if (e.target === optionsModal) optionsModal.classList.remove('active');
+    });
+
+    buildDecorations();
+
+    document.querySelectorAll('input, textarea').forEach(el => {
+      el.addEventListener('input', updateAll);
+      el.addEventListener('change', updateAll);
+    });
+
+    document.querySelectorAll('#quickColors .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        subColor.value = btn.dataset.color;
+        document.querySelectorAll('#quickColors .chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        updateAll();
+      });
+    });
+
+    subColor.addEventListener('input', () => {
+      document.querySelectorAll('#quickColors .chip').forEach(c => c.classList.remove('active'));
+    });
+
+    $('sampleBtn').addEventListener('click', () => {
+      selections.pattern = 'ジュエリー';
+      selections.mood = 'ゴージャス';
+      selections.ratio = '1:1';
+      selections.shape = '円形';
+      selections.thickness = '重厚';
+      selections.finish = '宝石のような';
+      selections.textStyle = '高級感のある筆記体';
+      selections.textPos = '下部';
+      
+      mainColor.value = '#ffd700';
+      subColor.value = '白';
+      detail.value = '上部に小さな王冠モチーフ、左右対称、キラキラ強め、外周に細かな光の粒子を追加';
+      
+      textEnabled.checked = true;
+      textValue.value = 'NATSUMI'; 
+      textColor.value = '白';
+      quality.value = '超高精細、masterpiece、豪華、緻密、高品質、洗練されたディテール';
+      
+      selectedDecorations.clear();
+      ['宝石', '王冠', '光粒子', 'パール'].forEach(v => selectedDecorations.add(v));
+      buildDecorations();
+      
+      document.querySelectorAll('#quickColors .chip').forEach(c => {
+        if(c.dataset.color === '白') c.classList.add('active');
+        else c.classList.remove('active');
+      });
+      
+      updateAll();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    $('resetBtn').addEventListener('click', () => {
+      selections.pattern = 'ラグジュアリー';
+      selections.mood = '可愛い';
+      selections.ratio = '1:1';
+      selections.shape = '円形';
+      selections.thickness = '標準';
+      selections.finish = '光沢感のある';
+      selections.textStyle = '高級感のある筆記体';
+      selections.textPos = '下部';
+      
+      mainColor.value = '#7cc8ff';
+      subColor.value = '白';
+      detail.value = '';
+      
+      textEnabled.checked = false;
+      textValue.value = '';
+      textColor.value = '白';
+      quality.value = '超高精細、masterpiece、高品質、洗練されたディテール';
+      
+      selectedDecorations.clear();
+      ['宝石', '光粒子'].forEach(v => selectedDecorations.add(v));
+      buildDecorations();
+      
+      document.querySelectorAll('#quickColors .chip').forEach(c => {
+        if(c.dataset.color === '白') c.classList.add('active');
+        else c.classList.remove('active');
+      });
+      
+      updateAll();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    updateAll();
+  </script>
+</body>
+</html>
